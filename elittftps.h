@@ -235,42 +235,34 @@ void ALL_CLIENTS::deleteClient(sock_addr_in client_add){
         else
             return 0;
     }
+	int Convert_And_Check_WRQ (PWRQ_P msg, char* Buffer) {
+	uint16_t tmp_op_code = 0;
+	memcpy(&tmp_op_code, Buffer, OP_BLOCK_FIELD_SIZE);
+
+	// expected write requests opcode to be first
+	if (ntohs(tmp_op_code) != WRQ)	{
+		return -1;
+	}
+
+	//get file from WRQ packet
+	msg->filename = strdup(Buffer + OP_BLOCK_FIELD_SIZE);
+	msg->mode = strdup(Buffer + OP_BLOCK_FIELD_SIZE + strlen(msg->filename) + 1);
+
+	// check if succesful
+	if ((msg->filename == NULL) || (msg->mode == NULL) ) {
+		return -1;
+	}
+	int counter;
+	if (Buffer[1+strlen(msg->filename+1)] =='\0'){
+		counter++;
+	}
+	if (Buffer[1+strlen(msg->filename+1+strlen(msg->mode)+1)=='\0'{
+		counter++;
+	}
+	return counter;		
+}
 
 #endif
 
 
-//ttfp.cpp
 
-    else if (sel_result ==0){
-        Client *first_client=(all_clients->begin())->second;
-        first_client->fails_num++;
-        if (first_client->fails_num > failures_num){
-            if (send_error_msg(0, "Abandoning file transmission",first_client->client_address,
-                               sizeof(first_client->client_address),sock)!= 0)/*sending error message to client and it didn't succeed*/){
-                //FIXME: to check if we need to delete all files also
-                delete all_clients;
-                close (sock_FD);
-                perror_func();
-            } else{
-                all_clients->deleteClient(first_client->client_address);
-            }
-
-        }else{
-            if (SendAck(first_client->client_address, sizeof(first_client->client_address),sock,
-                        first_client->block_num)!= 0){
-                //FIXME: to check if we need to delete all files also
-                delete all_clients;
-                close (sock_FD);
-                perror_func();
-
-            }
-        }
-    }
-
-
-    else if (sel_result<0){
-        //FIXME: to check if we need to delete all files also
-        delete all_clients;
-        close (sock_FD);
-        perror_func();
-    }
