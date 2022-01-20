@@ -37,15 +37,17 @@ typedef struct sockaddr_in sock_addr_in, *p_sock_addr_in; //organized struct for
 typedef struct Ack_Packet ACK_P, *PACK_P;
 typedef struct WRQ_Msg WRQ_M, *PWRQ_P;
 typedef struct Err_Packet ERR_P, *PERR_P;
+enum OP_CODE {WRQ = 2, DATA = 3, ACK =  4};
 //typedef struct timeval time;
 
+void Add_Client_WRQ (char* Buffer, ALL_CLIENTS *all, sock_addr_in curr_add);
+bool Check_WRQ_Msg (PWRQ_P msg, char* Buffer, ALL_CLIENTS *all);
 void perror_func();
 int SendAck(p_sock_addr_in User_address, int User_address_Size, int sock_Fd, uint16_t ack_Num);
 int send_error_msg(uint16_t errCode, char* errMsg, p_sock_addr_in User_address, int User_address_Size, int sock_Fd);
 
-extern char* strdup(const char*); //FIXME: why not using in strcpy?
-enum OP_CODE {WRQ = 2, DATA = 3, ACK =  4};
-using namespace std;
+//extern char* strdup(const char*); //FIXME: why not using in strcpy?
+
 
 // struct of wrq packet
 struct WRQ_Msg {
@@ -72,20 +74,19 @@ struct Err_Packet {
 class Client
 {
 public:
-    time_t last_recieved_t;
     sock_addr_in client_address; //ip and port
     uint16_t fails_num, last_block_num;
     char *file_name;
     //bool finish; //checks if we finished client transaction
 
     //Client();
-    Client(char *file, time_t time, sock_addr_in client_add);
+    Client(char *file, sock_addr_in client_add);
     ~Client();
 
 };
 
 
-Client::Client(char *file, time_t time, sock_addr_in client_add):last_recieved_t(time), fails_num(0),last_block_num(0),file_name(NULL){
+Client::Client(char *file, sock_addr_in client_add):fails_num(0),last_block_num(0),file_name(NULL){
     //finish = false;
     this->file_name = new char[strlen(file)+1];
     strcpy(this->file_name, file);
@@ -112,7 +113,7 @@ class ALL_CLIENTS
     Client* getClient(sock_addr_in client_add);
 
 
-    void addNewClient(char *file, time_t time, sock_addr_in client_add);
+    void addNewClient(char *file, sock_addr_in client_add);
     void deleteClient(sock_addr_in client_add);
     bool FileNameExists(char *check_file);
     //void setTime(sock_addr_in client_add, time_t currtime);
@@ -137,9 +138,11 @@ ALL_CLIENTS::~ALL_CLIENTS(){
 
 
 
-void ALL_CLIENTS::addNewClient(char *file, time_t time, sock_addr_in client_add){
-    Client *new_cl = new Client(file,time, client_add);
-    clientList[time]= new_cl;
+void ALL_CLIENTS::addNewClient(char *file, sock_addr_in client_add){
+    Client *new_cl = new Client(file,client_add);
+	time_t cur_time;
+    time(&cur_time);
+    clientList[cur_time]= new_cl;
 }
 void ALL_CLIENTS::deleteClient(sock_addr_in client_add){
     map<time_t, Client*>::iterator it = clientList.begin();
@@ -149,82 +152,83 @@ void ALL_CLIENTS::deleteClient(sock_addr_in client_add){
             delete it->second;
             clientList.erase(it);
         }
+	}
+}
 
-    }
 
-    map<time_t, Client*>::iterator ALL_CLIENTS::getBegin()
-    {
-        return clientList.begin();
-    }
+map<time_t, Client*>::iterator ALL_CLIENTS::getBegin()
+{
+    return clientList.begin();
+}
 
-    map<time_t, Client*>::iterator ALL_CLIENTS::getEnd()
-    {
-        return clientList.end();
-    }
+map<time_t, Client*>::iterator ALL_CLIENTS::getEnd()
+{
+    return clientList.end();
+}
 
-    map<time_t, Client*>::iterator ALL_CLIENTS::Find(sock_addr_in client_add){
-        map<time_t, Client*>::iterator it = clientList.begin();
-        for (; it != clientList.end(); it++){
-            if ((it->second->client_address).sin_port == client_add.sin_port &&
-                (it->second->client_address).sin_addr.s_addr==client_add.sin_addr.s_addr){
-                return it;
-            }
+map<time_t, Client*>::iterator ALL_CLIENTS::Find(sock_addr_in client_add){
+    map<time_t, Client*>::iterator it = clientList.begin();
+    for (; it != clientList.end(); it++){
+        if ((it->second->client_address).sin_port == client_add.sin_port &&
+            (it->second->client_address).sin_addr.s_addr==client_add.sin_addr.s_addr){
+            return it;
         }
-        return NULL;
     }
+    return NULL;
+}
 
-    Client* ALL_CLIENTS::getClient(sock_addr_in client_add){
-        map<time_t, Client*>::iterator it = clientList.begin();
-        for (; it != clientList.end(); it++){
-            if ((it->second->client_address).sin_port == client_add.sin_port &&
-                (it->second->client_address).sin_addr.s_addr==client_add.sin_addr.s_addr){
-                return it->second;
-            }
+Client* ALL_CLIENTS::getClient(sock_addr_in client_add){
+    map<time_t, Client*>::iterator it = clientList.begin();
+    for (; it != clientList.end(); it++){
+        if ((it->second->client_address).sin_port == client_add.sin_port &&
+            (it->second->client_address).sin_addr.s_addr==client_add.sin_addr.s_addr){
+            return it->second;
         }
-        return NULL;
-
     }
+    return NULL;
+}
 
-    bool ALL_CLIENTS::FileNameExists(char *check_file){
-        map<time_t, Client*>::iterator it = clientList.begin();
-        for (; it != clientList.end(); it++){
-            if (strcmp(it->second->file_name, check_file)==0){
-                return true;
-            }
+bool ALL_CLIENTS::FileNameExists(char *check_file){
+    map<time_t, Client*>::iterator it = clientList.begin();
+    for (; it != clientList.end(); it++){
+        if (strcmp(it->second->file_name, check_file)==0){
+            return true;
         }
-        return false;
     }
+    return false;
+}
 
 /*void ALL_CLIENTS::setTime(sock_addr_in client_add, time_t currtime){
 	map<time_t, Client*>::iterator it = clientList.Find(client_add);
 	it->second
 }*/
 
-    int send_error_msg(uint16_t errCode, char* errMsg, p_sock_addr_in User_address, int User_address_Size, int sock_Fd){
-        ERR_P current_error;
-        current_error.opcode = htons(5);
-        current_error.errorCode=htons(errorCode);
-        current_error.errorMsg = new char[strlen(errMsg)+1];
-        //TODO:to check if here we need htons
-        strcpy(current_error.errorMsg,errMsg);
-        current_error.errorMsg[strlen(errMsg)] = '\0';
-        if (sendto(sock_Fd, (void*)(&current_error), sizeof(current_error), 0, (p_sock_addr)User_address, User_address_Size) != sizeof(current_error)){
-            delete[] current_error.errorMsg;
-            return 1;
-        } else {
-            delete[] current_error.errorMsg;
-            return 0;
-        }
+int send_error_msg(uint16_t errCode, char* errMsg,
+p_sock_addr_in User_address, int User_address_Size, int sock_Fd){
+    ERR_P current_error;
+    current_error.opcode = htons(5);
+    current_error.errorCode=htons(errorCode);
+    current_error.errorMsg = new char[strlen(errMsg)+1];
+    //TODO:to check if here we need htons
+    strcpy(current_error.errorMsg,errMsg);
+    current_error.errorMsg[strlen(errMsg)] = '\0';
+    if (sendto(sock_Fd, (void*)(&current_error), sizeof(current_error), 0,
+	(p_sock_addr)User_address, User_address_Size) != sizeof(current_error)){
+        delete[] current_error.errorMsg;
+        return 1;
+    } else {
+        delete[] current_error.errorMsg;
+        return 0;
     }
+}
 
 
 
 
-    void perror_func()
-    {
+void perror_func(){
         perror("TTFTP_ERROR");
         exit(ERROR);
-    }
+}
     int SendAck(p_sock_addr_in User_address, int User_address_Size, int sock_Fd, uint16_t ack_Num) {
 
         ACK_P current_ack;
@@ -235,13 +239,13 @@ void ALL_CLIENTS::deleteClient(sock_addr_in client_add){
         else
             return 0;
     }
-	int Convert_And_Check_WRQ (PWRQ_P msg, char* Buffer) {
+bool Check_WRQ_Msg (PWRQ_P msg, char* Buffer, ALL_CLIENTS *all) {
 	uint16_t tmp_op_code = 0;
 	memcpy(&tmp_op_code, Buffer, OP_BLOCK_FIELD_SIZE);
 
 	// expected write requests opcode to be first
 	if (ntohs(tmp_op_code) != WRQ)	{
-		return -1;
+		return false;
 	}
 
 	//get file from WRQ packet
@@ -250,19 +254,34 @@ void ALL_CLIENTS::deleteClient(sock_addr_in client_add){
 
 	// check if succesful
 	if ((msg->filename == NULL) || (msg->mode == NULL) ) {
-		return -1;
+		return false;
 	}
-	int counter;
-	if (Buffer[1+strlen(msg->filename+1)] =='\0'){
-		counter++;
+	if (!(strcmp(msg->mode, "octet"))){
+		return false;
 	}
-	if (Buffer[1+strlen(msg->filename+1+strlen(msg->mode)+1)=='\0'{
-		counter++;
+	if (Buffer[1+strlen(msg->filename+1)] !='\0'){
+		return false;
 	}
-	return counter;		
+	if (Buffer[1+strlen(msg->filename+1+strlen(msg->mode)+1)!='\0'{
+		return false;
+	}
+	if (all->FileNameExists(msg->filename)){
+		return false;
+	}
+	return true;		
+}
+
+void Add_Client_WRQ(char* Buffer, ALL_CLIENTS *all, sock_addr_in curr_add){
+	PWRQ_P msg;
+	if (Check_WRQ_Msg(msg, Buffer, all)==true){
+		all->addNewClient(msg->file_name, curr_add);
+	}
 }
 
 #endif
+
+
+
 
 
 
