@@ -76,7 +76,8 @@ void send_error_msg(uint16_t errCode, const char* errMsg, p_sock_addr_in user_ad
     ERR_P current_error;
     current_error.opcode = htons(5);
     current_error.errorCode = htons(errCode);
-    strcpy(current_error.errorMsg, errMsg);
+//    strcpy(current_error.errorMsg, errMsg);
+    current_error.errorMsg = strdup(errMsg);
     if (sendto(sock_fd, (void*)(&current_error), sizeof(current_error), 0, (p_sock_addr)user_address, user_address_size) != sizeof(current_error))
         perror_func();
 }
@@ -94,8 +95,8 @@ bool check_WRQ_msg (char* Buffer)
     char* mode = strdup(Buffer + OP_BLOCK_FIELD_SIZE + strlen(filename) + 1);
 
     int test_fd = open(filename, O_RDONLY);
-    if ((filename == NULL)||(mode == NULL) || (!strcmp(mode, "octet")) || (test_fd < 0) ||
-        (Buffer[OP_BLOCK_FIELD_SIZE+strlen(filename)+1] != '\0') || (Buffer[OP_BLOCK_FIELD_SIZE+ strlen(filename)+1 + strlen(mode)+1] != '\0'))
+    if ((filename == NULL)||(mode == NULL) || (strcmp(mode, "octet")) || (test_fd < 0))
+//        (Buffer[OP_BLOCK_FIELD_SIZE+strlen(filename)+1] != '\0') || (Buffer[OP_BLOCK_FIELD_SIZE+ strlen(filename)+1 + strlen(mode)+1] != '\0'))
     {
         free(filename);
         free(mode);
@@ -137,10 +138,13 @@ Client::Client(char* fileName, sock_addr_in client_addr): fails_num(0), last_blo
     client_address.sin_family = client_addr.sin_family;
     client_address.sin_port = client_addr.sin_port;
     client_address.sin_addr.s_addr = client_addr.sin_addr.s_addr;
-    strcpy(reinterpret_cast<char *>(client_address.sin_zero), reinterpret_cast<const char *>(client_addr.sin_zero));
+//    strcpy(reinterpret_cast<char *>(client_address.sin_zero), reinterpret_cast<const char *>(client_addr.sin_zero));
 
     /* handling file */
-    strcpy(file_name, fileName); //including the null character
+    cout <<"Ctor 1"<<endl;
+//    strcpy(file_name, fileName); //including the null character
+    file_name = strdup(fileName);
+    cout <<"Ctor 2"<<endl;
     free(fileName); //fileName was created on heap by strdup in add_new_client, so after copying the name we need to free it
     fd = open(file_name, O_RDWR | O_TRUNC | O_CREAT, 0777); //create file with the same filename as original file with permission read,write&execute for owner,group,others
     if (fd < 0)
@@ -163,11 +167,9 @@ public:
     ~All_clients();
     map<time_t, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
     bool file_exists(char* check_file); //for error #5
-    void add_new_client(char* buffer, sock_addr_in curr_addr); //FIXME implement instead: create_client_from_WRQpacket(char* buffer)
+    void add_new_client(char* buffer, sock_addr_in curr_addr);
     bool operator<(const time_t& rhs);
 
-//    void deleteClient(sock_addr_in client_add); //FIXME: included in client destructor
-//    map<time_t, Client*>::iterator Find(sock_addr_in client_add); //FIXME: included in get_client
 };
 
 All_clients::All_clients(){}
@@ -213,8 +215,11 @@ void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr) //include
 //   1. parsing file name from buffer
 //   2. calling C'tor of client
 //   3. adding to map at current time
+    cout <<"ok here 1"<<endl;
     char* filename = strdup(Buffer + OP_BLOCK_FIELD_SIZE); //need to free in client C'tor
+    cout <<"ok here 2"<<endl;
     Client* new_cl = new Client(filename, curr_addr);
+    cout <<"ok here 3"<<endl;
     time_t cur_time;
     time(&cur_time);
     clientList[cur_time]= new_cl;
