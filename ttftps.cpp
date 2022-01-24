@@ -33,7 +33,7 @@ int main(int argc, char** argv){
     All_clients clients; //map of clients.clientList sorted wrt time of last packet sending
     fd_set read_fds;
     timeval select_timeout;
-    int i=0;
+    int i=-1;
     while(true) //running in endless loop
     {
         i++;
@@ -44,8 +44,12 @@ int main(int argc, char** argv){
 
         /*initializing timout*/
         select_timeout.tv_usec = 0; //milli seconds
-        if(!clients.clientList.size()) // no clients.clientList in map
+        cout<<"first key: "<<clients.clientList.begin()->first<<endl;
+        if(!clients.clientList.size()) {
+            cout<<i<<": map size is: "<<clients.clientList.size()<<endl;
+            // no clients.clientList in map
             select_timeout.tv_sec = time_t(time_out);
+        }
         else
         {
             time_t cur_time;
@@ -78,6 +82,7 @@ int main(int argc, char** argv){
 //            char* tmp_ip= inet_ntoa(tmp_client_addr.sin_addr);
             cout<<"G"<<i<<endl;
             map<time_t, Client*>::iterator tmp_client = clients.get_client(tmp_client_addr);
+            cout<<"size of clients map is: "<<clients.clientList.size()<<endl;
             if(tmp_client != clients.clientList.end()) //it means the client is already in map, so we expect to data packet
             {
                 /* error #2 */
@@ -120,21 +125,32 @@ int main(int argc, char** argv){
                 /*here we know we got a valid data packet*/
                 /*writing to client file*/
                 int read_data_size = read_packet_size - PACKET_HEADER_SIZE;
+                cout<<"data opcode: "<<buffer[0]<<buffer[1]<<endl;
+                cout<<"data blocknum: "<<buffer[2]<<buffer[3]<<endl;
+                cout<<"real data: "<<(buffer+4)<<endl;
                 if(write(tmp_client->second->fd, buffer+PACKET_HEADER_SIZE, read_data_size)<read_data_size)
                      perror_func();
 
-                if(read_packet_size < DATA_PACKET_MAX_SIZE) //transaction process finished successfully
-                     clients.clientList.erase(tmp_client); //cause we finished with this client
 
+                cout<<"map size check BEFORE UPDATE: "<<clients.clientList.size()<<endl;
+                if(read_packet_size < DATA_PACKET_MAX_SIZE) //transaction process finished successfully
+                {
+                    clients.clientList.erase(tmp_client); //cause we finished with this client
+                    cout<<"it was the last data packet"<<endl;
+                }
                 else //there are more data packets and transaction process finished successfully
                 {
                      tmp_client->second->last_block_num = tmp_block_num;
                      //updating time by inserting a new updated client and erase the previous one
                      time_t current_time;
                      time(&current_time);
-                     clients.clientList[current_time] = tmp_client->second; //FIXME: we need to implement copy C'tor
-                     clients.clientList.erase(tmp_client);
+                     clients.clientList[current_time] = tmp_client->second;
+                     cout<<"map size check IN UPDATE: "<<clients.clientList.size()<<endl;
+                     cout<<"KEY IN UPDATE: "<<clients.clientList.begin()->first<<endl;
+
+//                     clients.clientList.erase(tmp_client);
                 }
+                cout<<"map size check AFTER UPDATE: "<<clients.clientList.size()<<endl;
                 /*sending ack packet back to client. relevant whether it was the last dtata packet or not*/
                 send_ack(&tmp_client_addr, sizeof(tmp_client_addr), sock, tmp_block_num);
             }//if(tmp_client)
@@ -228,7 +244,7 @@ int main(int argc, char** argv){
             cout<<"select failed"<<endl;
             perror_func();
         }
-        cout<<"J"<<i<<endl;
+        cout<<i<<": last check map size: "<<clients.clientList.size()<<endl;
 
     }//while(true)
     close(sock);

@@ -78,6 +78,10 @@ void send_error_msg(uint16_t errCode, const char* errMsg, p_sock_addr_in user_ad
     current_error.errorCode = htons(errCode);
 //    strcpy(current_error.errorMsg, errMsg);
     current_error.errorMsg = strdup(errMsg);
+    *current_error.errorMsg = htons(*current_error.errorMsg);
+    cout<<"error msg: "<<current_error.errorMsg<<endl;
+
+
     if (sendto(sock_fd, (void*)(&current_error), sizeof(current_error), 0, (p_sock_addr)user_address, user_address_size) != sizeof(current_error))
         perror_func();
 }
@@ -95,9 +99,20 @@ bool check_WRQ_msg (char* Buffer)
     char* mode = strdup(Buffer + OP_BLOCK_FIELD_SIZE + strlen(filename) + 1);
 
     int test_fd = open(filename, O_RDONLY);
-    if ((filename == NULL)||(mode == NULL) || (strcmp(mode, "octet")) || (test_fd < 0))
+    bool illegal_filename = false;
+    for(int k=0; k<strlen(filename); k++) {
+        if (filename[k] == '/') {
+            illegal_filename = true;
+            break;
+        }
+    }
+
+    if ((filename == NULL)||(mode == NULL) || (strcmp(mode, "octet")) || (illegal_filename))
 //        (Buffer[OP_BLOCK_FIELD_SIZE+strlen(filename)+1] != '\0') || (Buffer[OP_BLOCK_FIELD_SIZE+ strlen(filename)+1 + strlen(mode)+1] != '\0'))
     {
+        cout<<"filename: "<<filename<<endl;
+        cout<<"mode: "<<mode<<endl;
+        cout<<"fd: "<<test_fd<<endl;
         free(filename);
         free(mode);
         close(test_fd);
@@ -191,9 +206,13 @@ map<time_t, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
     {
         if((it->second->client_address.sin_port == client_addr.sin_port) && (it->second->client_address.sin_addr.s_addr == client_addr.sin_addr.s_addr))
         {
+            cout<<"I FOUND this client in get_client func"<<endl;
+            cout<<" key IN FUNC is: "<<it->first<<endl;
             return it;
         }
     }
+    cout<<"I didnt find this client in get_client func"<<endl;
+    cout<<" map size IN FUNC is: "<<clientList.size()<<endl;
     return clientList.end(); //return the element following the last element in map
 }
 
