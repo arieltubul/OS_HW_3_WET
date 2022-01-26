@@ -16,7 +16,9 @@
 #include <iostream>
 #include <iomanip>
 #include <map>
-
+#include <numeric>
+#include <chrono>
+#include <ctime>
 
 #define _SVID_SOURCE
 #define _POSIX_C_SOURCE 200809L
@@ -30,12 +32,15 @@
 #define DATA_MAX_SIZE 512
 
 using namespace std;
+typedef std::chrono::system_clock::time_point key_time;
 typedef struct sockaddr* p_sock_addr; //original struct
 typedef struct sockaddr_in sock_addr_in, *p_sock_addr_in; //organized struct for IPV4
 typedef struct Ack_Packet ACK_P;
 typedef struct Err_Packet ERR_P;
 enum OPCODE {WRQ_OP = 2, DATA_OP = 3, ACK_OP =  4};
 extern char* strdup(const char*);
+
+
 
 /* structs */
 // struct of ack packet
@@ -175,15 +180,15 @@ class All_clients
 {
 public:
     /*attributes*/
-    map<time_t, Client*> clientList;
+    map<key_time, Client*> clientList;
 
     /*methods*/
     All_clients();
     ~All_clients();
-    map<time_t, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
+    map<key_time, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
     bool file_exists(char* check_file); //for error #5
     void add_new_client(char* buffer, sock_addr_in curr_addr);
-    bool operator<(const time_t& rhs);
+//    bool operator<(const key_time& rhs);
 
 };
 
@@ -191,7 +196,7 @@ All_clients::All_clients(){}
 
 All_clients::~All_clients()
 {
-    map<time_t, Client*>::iterator it = clientList.begin();
+    map<key_time, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); ) //erase automatically promotes it to next node
     {
         delete it->second;
@@ -199,15 +204,15 @@ All_clients::~All_clients()
     }
 }
 
-map<time_t, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
+map<key_time, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
 {
-    map<time_t, Client*>::iterator it = clientList.begin();
+    map<key_time, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); it++)
     {
         if((it->second->client_address.sin_port == client_addr.sin_port) && (it->second->client_address.sin_addr.s_addr == client_addr.sin_addr.s_addr))
         {
             cout<<"I FOUND this client in get_client func"<<endl;
-            cout<<" key IN FUNC is: "<<it->first<<endl;
+            cout<<" key IN FUNC is: "<<it->first.time_since_epoch().count()<<endl;
             return it;
         }
     }
@@ -218,7 +223,7 @@ map<time_t, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
 
 bool All_clients::file_exists(char* check_file)
 {
-    map<time_t, Client*>::iterator it = clientList.begin();
+    map<key_time, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); it++)
     {
         if (strcmp(it->second->file_name, check_file)==0)
@@ -239,105 +244,32 @@ void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr) //include
     cout <<"ok here 2"<<endl;
     Client* new_cl = new Client(filename, curr_addr);
     cout <<"ok here 3"<<endl;
-    time_t cur_time;
-    time(&cur_time);
+    key_time cur_time = chrono::system_clock::now();
     clientList[cur_time]= new_cl;
 }
 //overloading for key in order to sort map wrt last time a message sent
-bool All_clients::operator<(const time_t& rhs)
+bool operator<(const key_time& lhs, const key_time& rhs)
 {
-    if(difftime(rhs, reinterpret_cast<const time_t>(this)) > 0) //difftime(end, begin) --> k2>k1
-        return true;
-    return  false;
+    return lhs<rhs;
 }
 
-
-
-
-
-
-
-
-/*******************************************************************        MINE        **********************************************************************************************/
-
-//
-//
-//using namespace std;
-//
-//void perror_func()
+//ostream& operator<<(ostream& os, const key_time& kt)
 //{
-//    perror("TTFTP_ERROR");
-//    //we need also to free all allocations (maybe map, sock of server...)
-//    exit(ERROR);
-//}
-//
-//
-//bool is_wrq_packet_valid(char* packet)
-//{
-//
-//}
-//
-//void special_erase(Client client)
-//{
-//}
-//
-//////overloading access or adding to map - NO NEED BECAUSE WE OVERLOADED OPERATOR<
-////Client& operator[](const time_t& key)
-////{
-////    re
-////}
-
-
-//// struct of wrq packet
-//struct WRQ_Msg {
-//    char *filename;
-//    char *mode;
-//} __attribute__((packed));
-
-
-//void All_clients::deleteClient(sock_addr_in client_add)
-//{
-//    map<time_t, Client*>::iterator it = clientList.begin();
-//    for (; it != clientList.end(); it++)
-//    {
-//        if ((it->second->client_address).sin_port == client_add.sin_port && (it->second->client_address).sin_addr.s_addr==client_add.sin_addr.s_addr)
-//        {
-//            delete it->second;
-//            clientList.erase(it);
-//        }
-//    }
+//    os << " " <<kt;
+//    return os;
 //}
 
+//    key_time rhs_copy = rhs;
+//    std::chrono::duration<float> diff = rhs_copy - this->clientList.op;
+//    std::chrono::duration<float> diff = rhs std::minus<float> this;
 
-//map<time_t, Client*>::iterator All_clients::getBegin()
-//{
-//    return clientList.begin();
-//}
-//
-//
-//map<time_t, Client*>::iterator All_clients::getEnd()
-//{
-//    return clientList.end();
-//}
-
-//map<time_t, Client*>::iterator All_clients::Find(sock_addr_in client_add)
-//{
-//    map<time_t, Client*>::iterator it = clientList.begin();
-//    for (; it != clientList.end(); it++)
-//    {
-//        if ((it->second->client_address).sin_port == client_add.sin_port && (it->second->client_address).sin_addr.s_addr==client_add.sin_addr.s_addr)
-//        {
-//            return it;
-//        }
-//    }
-//    return NULL;
+//    std::chrono::duration<double> diff = rhs - this;
+//    if(diff>0) //difftime(end, begin) --> k2>k1
+//    if(rhs  this)
+//        return true;
+//    return  false;
 //}
 
-
-/*void All_clients::setTime(sock_addr_in client_add, time_t currtime){
-	map<time_t, Client*>::iterator it = clientList.Find(client_add);
-	it->second
-}*/
 
 #endif
 

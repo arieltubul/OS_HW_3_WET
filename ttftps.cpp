@@ -44,7 +44,7 @@ int main(int argc, char** argv){
 
         /*initializing timout*/
         select_timeout.tv_usec = 0; //milli seconds
-        cout<<"first key: "<<clients.clientList.begin()->first<<endl;
+        cout << "first key: " << clients.clientList.begin()->first.time_since_epoch().count()<<endl;
         if(!clients.clientList.size()) {
             cout<<i<<": map size is: "<<clients.clientList.size()<<endl;
             // no clients.clientList in map
@@ -54,7 +54,8 @@ int main(int argc, char** argv){
         {
             time_t cur_time;
             time(&cur_time);
-            select_timeout.tv_sec = time_t(time_out - difftime(cur_time, clients.clientList.begin()->first)); //diff(end, begin)
+            std::chrono::duration<double> diff = std::chrono::system_clock::now() - clients.clientList.begin()->first;
+            select_timeout.tv_sec = (time_t)(static_cast<std::chrono::duration<double>>(time_out) - diff); //diff(end, begin)
         }
         cout<<"D"<<i<<endl;
 
@@ -81,7 +82,7 @@ int main(int argc, char** argv){
 //            uint16_t tmp_port = ntohs(tmp_client_addr.sin_port);
 //            char* tmp_ip= inet_ntoa(tmp_client_addr.sin_addr);
             cout<<"G"<<i<<endl;
-            map<time_t, Client*>::iterator tmp_client = clients.get_client(tmp_client_addr);
+            map<key_time, Client*>::iterator tmp_client = clients.get_client(tmp_client_addr);
             cout<<"size of clients map is: "<<clients.clientList.size()<<endl;
             if(tmp_client != clients.clientList.end()) //it means the client is already in map, so we expect to data packet
             {
@@ -129,7 +130,7 @@ int main(int argc, char** argv){
                 cout<<"data blocknum: "<<buffer[2]<<buffer[3]<<endl;
                 cout<<"real data: "<<(buffer+4)<<endl;
                 if(write(tmp_client->second->fd, buffer+PACKET_HEADER_SIZE, read_data_size)<read_data_size)
-                     perror_func();
+                    perror_func();
 
 
                 cout<<"map size check BEFORE UPDATE: "<<clients.clientList.size()<<endl;
@@ -140,13 +141,12 @@ int main(int argc, char** argv){
                 }
                 else //there are more data packets and transaction process finished successfully
                 {
-                     tmp_client->second->last_block_num = tmp_block_num;
-                     //updating time by inserting a new updated client and erase the previous one
-                     time_t current_time;
-                     time(&current_time);
-                     clients.clientList[current_time] = tmp_client->second;
-                     cout<<"map size check IN UPDATE: "<<clients.clientList.size()<<endl;
-                     cout<<"KEY IN UPDATE: "<<clients.clientList.begin()->first<<endl;
+                    tmp_client->second->last_block_num = tmp_block_num;
+                    //updating time by inserting a new updated client and erase the previous one
+                    key_time current_time = chrono::system_clock::now();
+                    clients.clientList[current_time] = tmp_client->second;
+                    cout<<"map size check IN UPDATE: "<<clients.clientList.size()<<endl;
+                    cout<<"KEY IN UPDATE: "<<clients.clientList.begin()->first.time_since_epoch().count()<<endl;
 
 //                     clients.clientList.erase(tmp_client);
                 }
@@ -207,7 +207,7 @@ int main(int argc, char** argv){
         }
 
 
-        /*SECOND CASE: timeout*/
+            /*SECOND CASE: timeout*/
         else if(select_result ==0)
         {
             cout<<"timout"<<endl;
@@ -215,7 +215,7 @@ int main(int argc, char** argv){
             if (clients.clientList.size() == 0)
                 continue;
 
-            map<time_t, Client*>::iterator first_client = clients.clientList.begin();
+            map<key_time, Client*>::iterator first_client = clients.clientList.begin();
             sock_addr_in user_addr =  first_client->second->client_address;
             socklen_t len = sizeof(user_addr);
 
@@ -229,7 +229,7 @@ int main(int argc, char** argv){
                 clients.clientList.erase(first_client);
             }
 
-            //the client didn't pass failure max
+                //the client didn't pass failure max
             else
             {
                 //sending recent Ack message to client and the system call didn't succeed
@@ -238,7 +238,7 @@ int main(int argc, char** argv){
         }
 
 
-        /*THIRD CASE: select sys call failed*/
+            /*THIRD CASE: select sys call failed*/
         else if (select_result<0)
         {
             cout<<"select failed"<<endl;
