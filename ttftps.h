@@ -161,13 +161,15 @@ Client::Client(char* fileName, sock_addr_in client_addr): fails_num(0), last_blo
     last_packet_time = time(NULL);
 
     /* handling file */
-//    cout <<"Ctor 1"<<endl;
+    cout <<"Ctor 1"<<endl;
     file_name = strdup(fileName);
-//    cout <<"Ctor 2"<<endl;
+    cout <<"Ctor 2"<<endl;
     free(fileName); //fileName was created on heap by strdup in add_new_client, so after copying the name we need to free it
     fd = open(file_name, O_RDWR | O_TRUNC | O_CREAT, 0777); //create file with the same filename as original file with permission read,write&execute for owner,group,others
+    cout <<"Ctor 3"<<endl;
     if (fd < 0)
         perror_func();
+    cout <<"Ctor 4"<<endl;
 }
 
 Client::~Client(){} //we didn't allocate anything on heap so we D'tor is empty
@@ -247,6 +249,7 @@ void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr) //include
     strcat(port_string, ip_string);
     int key = atoi(port_string);
 //    int key = stoi(to_string(ip) + to_string(port));
+    cout<<"calling ctor"<<endl;
     Client* new_cl = new Client(filename, curr_addr);
     clientList[key]= new_cl;
 }

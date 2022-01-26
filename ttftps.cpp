@@ -41,17 +41,17 @@ int main(int argc, char** argv){
         /*initializing read_fds*/
         FD_ZERO(&read_fds); //clears the read_fds
         FD_SET(sock, &read_fds); //adds file descriptor to the set
-
         /*initializing timout*/
+        cout<<i<<": map size is: "<<clients.clientList.size()<<endl;
         select_timeout.tv_usec = 0; //milli seconds
-        cout << "first key: " << clients.clientList.begin()->second->last_packet_time<<endl;
         if(!clients.clientList.size()) {
-            cout<<i<<": map size is: "<<clients.clientList.size()<<endl;
+            cout<<"im here 1"<<endl;
             // no clients.clientList in map
             select_timeout.tv_sec = time_t(time_out);
         }
         else
         {
+            cout<<"im here 2"<<endl;
             map<int, Client*>::iterator timeout_client = clients.get_earliest_packet_client();
             time_t cur_time = time(NULL);
             double diff = difftime(cur_time, timeout_client->second->last_packet_time);
@@ -222,11 +222,11 @@ int main(int argc, char** argv){
             cout<<"earlist: filename: "<<bad_client->second->file_name<<", last time: "<<bad_client->second->last_packet_time<<endl;
             //TODO:DEBUG
             map<int, Client*>::iterator it = clients.clientList.begin();
-            for (; it != clients.clientList.end(); ) //erase automatically promotes it to next node
-            {
-                cout<<"printing file names and last time of packet to every alive client:"<<endl;
-                cout<<"file name: "<<it->second->file_name<<", last time: "<<it->second->last_packet_time<<endl;
-            }
+//            for (; it != clients.clientList.end(); ) //erase automatically promotes it to next node
+//            {
+//                cout<<"printing file names and last time of packet to every alive client:"<<endl;
+//                cout<<"file name: "<<it->second->file_name<<", last time: "<<it->second->last_packet_time<<endl;
+//            }
             //till here debug
             sock_addr_in user_addr =  bad_client->second->client_address;
             socklen_t len = sizeof(user_addr);
