@@ -53,9 +53,15 @@ int main(int argc, char** argv){
         else
         {
             time_t cur_time;
+			timeval tmp;
             time(&cur_time);
             std::chrono::duration<double> diff = std::chrono::system_clock::now() - clients.clientList.begin()->first.time_since_epoch().count;
             select_timeout.tv_sec = (time_t)(static_cast<std::chrono::duration<double>>(time_out) - diff); //diff(end, begin)
+<<<<<<< HEAD
+=======
+			//FIXME: select_timeout.tv_usec = 
+			
+>>>>>>> upstream/main
         }
         cout<<"D"<<i<<endl;
 
@@ -90,6 +96,10 @@ int main(int argc, char** argv){
                 if((read_packet_size < PACKET_HEADER_SIZE) || (tmp_opcode == ACK_OP)) //TODO: make sure that we can't get here an ACK packet by a mistake
                 {
                     close(tmp_client->second->fd);
+<<<<<<< HEAD
+=======
+					remove(tmp_client->second->file_name);
+>>>>>>> upstream/main
                     send_error_msg(4, "Illegal TFTP operation", &tmp_client_addr, sizeof(tmp_client_addr), sock);
                     delete(tmp_client->second);
                     clients.clientList.erase(tmp_client);
@@ -100,6 +110,10 @@ int main(int argc, char** argv){
                 if(tmp_opcode == WRQ_OP)
                 {
                     close(tmp_client->second->fd);
+<<<<<<< HEAD
+=======
+					remove(tmp_client->second->file_name);
+>>>>>>> upstream/main
                     send_error_msg(4, "Unexpected packet", &tmp_client_addr, sizeof(tmp_client_addr), sock);
                     delete(tmp_client->second);
                     clients.clientList.erase(tmp_client);
@@ -117,6 +131,10 @@ int main(int argc, char** argv){
                 if(tmp_block_num != tmp_client->second->last_block_num + 1)
                 {
                     close(tmp_client->second->fd);
+<<<<<<< HEAD
+=======
+					remove(tmp_client->second->file_name);
+>>>>>>> upstream/main
                     send_error_msg(0, "Bad block number", &tmp_client_addr, sizeof(tmp_client_addr), sock);
                     delete(tmp_client->second);
                     clients.clientList.erase(tmp_client);
@@ -167,6 +185,7 @@ int main(int argc, char** argv){
                     cout<<"wrq_p"<<i<<" error1"<<endl;
                     continue;
                 }
+<<<<<<< HEAD
 
                 /* error #2 */
                 if((read_packet_size < OP_BLOCK_FIELD_SIZE) || (tmp_opcode != WRQ_OP))
@@ -205,8 +224,18 @@ int main(int argc, char** argv){
                 send_ack(&tmp_client_addr, sizeof(tmp_client_addr), sock, 0);
             }
         }
+=======
+>>>>>>> upstream/main
 
+                /* error #2 */
+                if((read_packet_size < OP_BLOCK_FIELD_SIZE) || (tmp_opcode != WRQ_OP))
+                {
+                    cout<<"wrq_p"<<i<<" error2"<<endl;
+                    send_error_msg(4, "Illegal TFTP operation", &tmp_client_addr, sizeof(tmp_client_addr), sock);
+                    continue;
+                }
 
+<<<<<<< HEAD
             /*SECOND CASE: timeout*/
         else if(select_result ==0)
         {
@@ -236,8 +265,74 @@ int main(int argc, char** argv){
                 send_ack(&user_addr, len, sock, first_client->second->last_block_num);
             }
         }
+=======
+                /* error #4 */
+                char packet[DATA_PACKET_MAX_SIZE];
+                memcpy(packet, buffer, sizeof(buffer));
+                if(check_WRQ_msg(packet) == false)
+                {
+                    cout<<"wrq_p"<<i<<" error4"<<endl;
+                    send_error_msg(4, "Illegal WRQ", &tmp_client_addr, sizeof(tmp_client_addr), sock);
+                    cout<<"send error successfully"<<endl;
+                    continue;
+                }
+>>>>>>> upstream/main
+
+                /* error #5 */
+                char* filename = strdup(buffer + OP_BLOCK_FIELD_SIZE);
+                if(clients.file_exists(filename) == true)
+                {
+                    cout<<"wrq_p"<<i<<" error5"<<endl;
+                    send_error_msg(6, "File already exists", &tmp_client_addr, sizeof(tmp_client_addr), sock);
+                    free(filename); //strdup allocates memory
+                    continue;
+                }
+                free(filename); //strdup allocates memory
+
+<<<<<<< HEAD
+=======
+                /*here we know we got a valid data packet*/
+                cout<<"about to add a new client"<<endl;
+                clients.add_new_client(buffer, tmp_client_addr);
+                cout<<"I"<<i<<endl;
+                send_ack(&tmp_client_addr, sizeof(tmp_client_addr), sock, 0);
+            }
+        }
 
 
+            /*SECOND CASE: timeout*/
+        else if(select_result ==0)
+        {
+            cout<<"timout"<<endl;
+            //check if the map is empty so it wasn't a real timeout
+            if (clients.clientList.size() == 0)
+                continue;
+
+            map<key_time, Client*>::iterator first_client = clients.clientList.begin();
+            sock_addr_in user_addr =  first_client->second->client_address;
+            socklen_t len = sizeof(user_addr);
+
+            first_client->second->fails_num++;
+            //handling the case that this client did too many failures
+            if (first_client->second->fails_num > failures_num)
+            {
+                close(first_client->second->fd);
+				remove(first_client->second->file_name);
+                send_error_msg(0, "Abandoning file transmission", &user_addr, len, sock);
+                delete(first_client->second);
+                clients.clientList.erase(first_client);
+            }
+
+                //the client didn't pass failure max
+            else
+            {
+                //sending recent Ack message to client and the system call didn't succeed
+                send_ack(&user_addr, len, sock, first_client->second->last_block_num);
+            }
+        }
+
+
+>>>>>>> upstream/main
             /*THIRD CASE: select sys call failed*/
         else if (select_result<0)
         {
