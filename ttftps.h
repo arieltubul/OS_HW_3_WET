@@ -17,8 +17,9 @@
 #include <iomanip>
 #include <map>
 #include <numeric>
-#include <chrono>
+//#include <chrono>
 #include <ctime>
+#include <string>
 
 #define _SVID_SOURCE
 #define _POSIX_C_SOURCE 200809L
@@ -32,15 +33,11 @@
 #define DATA_MAX_SIZE 512
 
 using namespace std;
-typedef std::chrono::system_clock::time_point key_time;
+//typedef std::chrono::system_clock::time_point key_time;
 typedef struct sockaddr* p_sock_addr; //original struct
 typedef struct sockaddr_in sock_addr_in, *p_sock_addr_in; //organized struct for IPV4
 typedef struct Ack_Packet ACK_P;
 typedef struct Err_Packet ERR_P;
-<<<<<<< HEAD
-=======
-typedef struct timeval timeval, *p_timeval;
->>>>>>> upstream/main
 enum OPCODE {WRQ_OP = 2, DATA_OP = 3, ACK_OP =  4};
 extern char* strdup(const char*);
 
@@ -67,13 +64,8 @@ void send_ack(p_sock_addr_in user_address, int user_address_size, int sock_fd, u
 void send_error_msg(uint16_t errCode, const char* errMsg, p_sock_addr_in user_address, int user_address_size, int sock_fd);
 bool check_WRQ_msg (char* Buffer);
 void perror_func();
-<<<<<<< HEAD
 
 
-=======
-
-
->>>>>>> upstream/main
 /*definitions*/
 void send_ack(p_sock_addr_in user_address, int user_address_size, int sock_fd, uint16_t ack_Num)
 {
@@ -112,7 +104,6 @@ bool check_WRQ_msg (char* Buffer)
     char* filename = strdup(Buffer + OP_BLOCK_FIELD_SIZE);
     char* mode = strdup(Buffer + OP_BLOCK_FIELD_SIZE + strlen(filename) + 1);
 
-    int test_fd = open(filename, O_RDONLY);
     bool illegal_filename = false;
     for(int k=0; k<strlen(filename); k++) {
         if (filename[k] == '/') {
@@ -126,14 +117,12 @@ bool check_WRQ_msg (char* Buffer)
     {
         cout<<"filename: "<<filename<<endl;
         cout<<"mode: "<<mode<<endl;
-        cout<<"fd: "<<test_fd<<endl;
         free(filename);
         free(mode);
-        close(test_fd);
         return false;
     }
-
-    return true;
+    else
+        return true;
 }
 
 
@@ -155,11 +144,7 @@ public:
     uint16_t last_block_num;
     char* file_name;
     int fd;
-<<<<<<< HEAD
     time_t last_packet_time;
-=======
-    timeval last_packet_time;
->>>>>>> upstream/main
 
     /*methods*/
     Client(char* fileName, sock_addr_in client_add);
@@ -170,21 +155,15 @@ Client::Client(char* fileName, sock_addr_in client_addr): fails_num(0), last_blo
 {
     /* handling address */
     client_address.sin_family = client_addr.sin_family;
-    client_address.sin_port = client_addr.sin_port;
-    client_address.sin_addr.s_addr = client_addr.sin_addr.s_addr;
-//    strcpy(reinterpret_cast<char *>(client_address.sin_zero), reinterpret_cast<const char *>(client_addr.sin_zero));
-<<<<<<< HEAD
+    client_address.sin_port = ntohs(client_addr.sin_port);
+    client_address.sin_addr.s_addr = ntohl(client_addr.sin_addr.s_addr);
+
     last_packet_time = time(NULL);
-=======
-    last_packet_time.tv_sec = time(NULL);
-	//FIXME: what happen here?
-	//last_packet_time.tv_usec =
->>>>>>> upstream/main
+
     /* handling file */
-    cout <<"Ctor 1"<<endl;
-//    strcpy(file_name, fileName); //including the null character
+//    cout <<"Ctor 1"<<endl;
     file_name = strdup(fileName);
-    cout <<"Ctor 2"<<endl;
+//    cout <<"Ctor 2"<<endl;
     free(fileName); //fileName was created on heap by strdup in add_new_client, so after copying the name we need to free it
     fd = open(file_name, O_RDWR | O_TRUNC | O_CREAT, 0777); //create file with the same filename as original file with permission read,write&execute for owner,group,others
     if (fd < 0)
@@ -206,12 +185,9 @@ public:
     All_clients();
     ~All_clients();
     map<int, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
-<<<<<<< HEAD
-=======
-	map<int, Client*>::iterator get_lowest_time_client();
->>>>>>> upstream/main
     bool file_exists(char* check_file); //for error #5
     void add_new_client(char* buffer, sock_addr_in curr_addr);
+    map<int, Client*>::iterator get_earliest_packet_client();
 //    bool operator<(const key_time& rhs);
 
 };
@@ -223,11 +199,6 @@ All_clients::~All_clients()
     map<int, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); ) //erase automatically promotes it to next node
     {
-<<<<<<< HEAD
-=======
-		close(it->second->fd);
-		remove (it->second->file_name);
->>>>>>> upstream/main
         delete it->second;
         clientList.erase(it);
     }
@@ -250,43 +221,11 @@ map<int, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
     return clientList.end(); //return the element following the last element in map
 }
 
-<<<<<<< HEAD
-=======
-map<int, Client*>::iterator All_Clients::get_lowest_time_client(p_timeval lowest_time){
-	if (clients.clientList.size() == 0){
-		return NULL
-	}
-	map<int, Client*>::iterator it = clientList.begin();
-	map<int, Client*>::iterator return_it;
-	timeval min_time = it->second->last_packet_time;
-	if (lowest_time!=NULL){
-		*(lowest_time) = it->second->last_packet_time;
-	}
-	return_it = it;
-	it++;
-	for(; it != clientList.end(); it++ ){
-		if (difftime(it->second->last_packet_time, min_time)<0){
-			min_time = it->second->last_packet_time;
-			return_it = it;
-			if (lowest_time!=NULL){
-				*(lowest_time) = it->second->last_packet_time;
-			}
-		}
-	}
-	return return_it;
-}
-
->>>>>>> upstream/main
 bool All_clients::file_exists(char* check_file)
 {
-    map<int, Client*>::iterator it = clientList.begin();
-    for (; it != clientList.end(); it++)
-    {
-        if (strcmp(it->second->file_name, check_file)==0)
-        {
-            return true;
-        }
-    }
+    FILE* test_fd = fopen(check_file, "r");
+    if(test_fd != NULL) // we managed to open the file so its already exists
+        return true;
     return false;
 }
 
@@ -298,12 +237,34 @@ void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr) //include
     cout <<"ok here 1"<<endl;
     char* filename = strdup(Buffer + OP_BLOCK_FIELD_SIZE); //need to free in client C'tor
     cout <<"ok here 2"<<endl;
+
+    uint16_t port = ntohs(curr_addr.sin_port);
+    unsigned long ip = ntohl(curr_addr.sin_addr.s_addr);
+    char ip_string[64];
+    char port_string[16];
+    sprintf(port_string, "%hu", port);
+    sprintf(ip_string, "%lu", ip);
+    strcat(port_string, ip_string);
+    int key = atoi(port_string);
+//    int key = stoi(to_string(ip) + to_string(port));
     Client* new_cl = new Client(filename, curr_addr);
-    cout <<"ok here 3"<<endl;
-    auto port = curr_addr.sin_port;
-    auto ip = curr_addr.sin_addr.s_addr;
-    int key = stoi(to_string(ip) + to_string(port));
     clientList[key]= new_cl;
+}
+
+map<int, Client*>::iterator All_clients::get_earliest_packet_client()
+{
+    time_t min_time = time(NULL);//current time is bigger than any other time in map
+    map<int, Client*>::iterator return_it = clientList.begin(); //iterator for element with the lowest time
+    map<int, Client*>::iterator it = clientList.begin();
+    for (; it != clientList.end(); it++)
+    {
+        if (it->second->last_packet_time <= min_time)
+        {
+            min_time = it->second->last_packet_time;
+            return_it = it;
+        }
+    }
+    return return_it;
 }
 //overloading for key in order to sort map wrt last time a message sent
 //bool operator<(const key_time& lhs, const key_time& rhs)
