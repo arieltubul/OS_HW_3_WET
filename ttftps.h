@@ -117,8 +117,8 @@ bool check_WRQ_msg (char* Buffer)
     {
         cout<<"filename: "<<filename<<endl;
         cout<<"mode: "<<mode<<endl;
-        free(filename);
-        free(mode);
+//        free(filename);
+//        free(mode);
         return false;
     }
     else
@@ -147,11 +147,11 @@ public:
     time_t last_packet_time;
 
     /*methods*/
-    Client(char* fileName, sock_addr_in client_add);
+    Client(char* fileName, sock_addr_in client_add, int fd);
     ~Client();
 };
 
-Client::Client(char* fileName, sock_addr_in client_addr): fails_num(0), last_block_num(0)
+Client::Client(char* fileName, sock_addr_in client_addr, int fd): fails_num(0), last_block_num(0), fd(fd)
 {
     /* handling address */
     client_address.sin_family = client_addr.sin_family;
@@ -164,12 +164,7 @@ Client::Client(char* fileName, sock_addr_in client_addr): fails_num(0), last_blo
     cout <<"Ctor 1"<<endl;
     file_name = strdup(fileName);
     cout <<"Ctor 2"<<endl;
-    free(fileName); //fileName was created on heap by strdup in add_new_client, so after copying the name we need to free it
-    fd = open(file_name, O_RDWR | O_TRUNC | O_CREAT, 0777); //create file with the same filename as original file with permission read,write&execute for owner,group,others
-    cout <<"Ctor 3"<<endl;
-    if (fd < 0)
-        perror_func();
-    cout <<"Ctor 4"<<endl;
+//    free(fileName); //fileName was created on heap by strdup in add_new_client, so after copying the name we need to free it
 }
 
 Client::~Client(){} //we didn't allocate anything on heap so we D'tor is empty
@@ -187,8 +182,8 @@ public:
     All_clients();
     ~All_clients();
     map<int, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
-    bool file_exists(char* check_file); //for error #5
-    void add_new_client(char* buffer, sock_addr_in curr_addr);
+//    bool file_exists(char* check_file); //for error #5
+    void add_new_client(char* buffer, sock_addr_in curr_addr, int sock);
     map<int, Client*>::iterator get_earliest_packet_client();
 //    bool operator<(const key_time& rhs);
 
@@ -211,7 +206,7 @@ map<int, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
     map<int, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); it++)
     {
-        if((it->second->client_address.sin_port == client_addr.sin_port) && (it->second->client_address.sin_addr.s_addr == client_addr.sin_addr.s_addr))
+        if((it->second->client_address.sin_port == ntohs(client_addr.sin_port)) && (it->second->client_address.sin_addr.s_addr == ntohl(client_addr.sin_addr.s_addr)))
         {
             cout<<"I FOUND this client in get_client func"<<endl;
             cout<<" time IN FUNC is: "<<it->second->last_packet_time<<endl;
@@ -223,35 +218,51 @@ map<int, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
     return clientList.end(); //return the element following the last element in map
 }
 
-bool All_clients::file_exists(char* check_file)
-{
-    FILE* test_fd = fopen(check_file, "r");
-    if(test_fd != NULL) // we managed to open the file so its already exists
-        return true;
-    return false;
-}
+//bool All_clients::file_exists(char* check_file)
+//{
+////    FILE* test_fd = fopen(check_file, "r");
+//    int test_fd = open(check_file, O_RDONLY);
+//    if(test_fd >= 0) // we managed to open the file so its already exists
+//        return true;
+//    return false;
+//}
 
-void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr) //included in create_client_from_WRQpacket(char* buffer)
+void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr, int sock) //included in create_client_from_WRQpacket(char* buffer)
 {
 //   1. parsing file name from buffer
 //   2. calling C'tor of client
 //   3. adding to map at current time
     cout <<"ok here 1"<<endl;
     char* filename = strdup(Buffer + OP_BLOCK_FIELD_SIZE); //need to free in client C'tor
+    cout<<"filename is: "<<filename<<endl;
     cout <<"ok here 2"<<endl;
+    int fd = open(filename, O_CREAT | O_WRONLY | O_EXCL, 0777);
+    if(fd<0)
+    {
+        if(errno == EEXIST)
+        {
+            cout<<"wrq_p error5"<<endl;
+            send_error_msg(6, "File already exists", &curr_addr, sizeof(curr_addr), sock);
+        }
+        else
+            perror_func();
 
-    uint16_t port = ntohs(curr_addr.sin_port);
-    unsigned long ip = ntohl(curr_addr.sin_addr.s_addr);
-    char ip_string[64];
-    char port_string[16];
-    sprintf(port_string, "%hu", port);
-    sprintf(ip_string, "%lu", ip);
-    strcat(port_string, ip_string);
-    int key = atoi(port_string);
+    }
+    else
+    {
+        uint16_t port = ntohs(curr_addr.sin_port);
+        unsigned long ip = ntohl(curr_addr.sin_addr.s_addr);
+        char ip_string[64];
+        char port_string[16];
+        sprintf(port_string, "%hu", port);
+        sprintf(ip_string, "%lu", ip);
+        strcat(port_string, ip_string);
+        int key = atoi(port_string);
 //    int key = stoi(to_string(ip) + to_string(port));
-    cout<<"calling ctor"<<endl;
-    Client* new_cl = new Client(filename, curr_addr);
-    clientList[key]= new_cl;
+        cout<<"calling ctor"<<endl;
+        Client* new_cl = new Client(filename, curr_addr, fd);
+        clientList[key]= new_cl;
+    }
 }
 
 map<int, Client*>::iterator All_clients::get_earliest_packet_client()

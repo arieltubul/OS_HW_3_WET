@@ -73,6 +73,9 @@ int main(int argc, char** argv){
             if(read_packet_size < 0) //recvfrom failed
                 perror_func();
 
+            char* fname = strdup(buffer + OP_BLOCK_FIELD_SIZE); //need to free in client C'tor
+            cout<<"filename in begining is: "<<fname<<endl;
+
             /*handling opcode*/
             uint16_t tmp_opcode;
             memcpy(&tmp_opcode, buffer, OP_BLOCK_FIELD_SIZE);
@@ -190,22 +193,25 @@ int main(int argc, char** argv){
                     continue;
                 }
 
-                /* error #5 */
-                char* filename = strdup(buffer + OP_BLOCK_FIELD_SIZE);
-                if(clients.file_exists(filename) == true)
-                {
-                    cout<<"wrq_p"<<i<<" error5"<<endl;
-                    send_error_msg(6, "File already exists", &tmp_client_addr, sizeof(tmp_client_addr), sock);
-                    free(filename); //strdup allocates memory
-                    continue;
-                }
-                free(filename); //strdup allocates memory
+//                /* error #5 */
+//                char* filename = strdup(buffer + OP_BLOCK_FIELD_SIZE);
+//                if(clients.file_exists(filename) == true)
+//                {
+//                    cout<<"wrq_p"<<i<<" error5"<<endl;
+//                    send_error_msg(6, "File already exists", &tmp_client_addr, sizeof(tmp_client_addr), sock);
+////                    free(filename); //strdup allocates memory
+//                    continue;
+//                }
+////                free(filename); //strdup allocates memory
 
                 /*here we know we got a valid data packet*/
                 cout<<"about to add a new client"<<endl;
-                clients.add_new_client(buffer, tmp_client_addr);
+                char* filename = strdup(buffer + OP_BLOCK_FIELD_SIZE); //need to free in client C'tor
+                cout<<"filename in cpp is: "<<filename<<endl;
+                clients.add_new_client(buffer, tmp_client_addr, sock);
                 cout<<"I"<<i<<endl;
                 send_ack(&tmp_client_addr, sizeof(tmp_client_addr), sock, 0);
+                cout<<"earlist: filename: "<<tmp_client->second->file_name<<", last time: "<<tmp_client->second->last_packet_time<<endl;
             }
         }
 
