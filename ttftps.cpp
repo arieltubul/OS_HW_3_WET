@@ -80,6 +80,7 @@ int main(int argc, char** argv){
             uint16_t tmp_opcode;
             memcpy(&tmp_opcode, buffer, OP_BLOCK_FIELD_SIZE);
             tmp_opcode = ntohs(tmp_opcode);
+            cout<<"filename in 1 is: "<<(buffer + OP_BLOCK_FIELD_SIZE)<<endl;
 
 //            /*handling ip and port*/
 //            uint16_t tmp_port = ntohs(tmp_client_addr.sin_port);
@@ -116,6 +117,7 @@ int main(int argc, char** argv){
                 /*handling block_num*/
                 uint16_t tmp_block_num;
                 memcpy(&tmp_block_num, buffer+OP_BLOCK_FIELD_SIZE, OP_BLOCK_FIELD_SIZE);
+                cout<<"filename in 2 is: "<< (buffer+OP_BLOCK_FIELD_SIZE)<<endl;
                 tmp_block_num = ntohs(tmp_block_num);
 
                 /* error #6 */
@@ -183,8 +185,11 @@ int main(int argc, char** argv){
                 }
 
                 /* error #4 */
+                cout<<"filename in 3 is: "<< (buffer+OP_BLOCK_FIELD_SIZE)<<endl;
                 char packet[DATA_PACKET_MAX_SIZE];
-                memcpy(packet, buffer, sizeof(buffer));
+                memcpy(packet, buffer, DATA_PACKET_MAX_SIZE);
+                cout<<"filename in 4 is: "<< (buffer+OP_BLOCK_FIELD_SIZE)<<endl;
+
                 if(check_WRQ_msg(packet) == false)
                 {
                     cout<<"wrq_p"<<i<<" error4"<<endl;
@@ -204,14 +209,15 @@ int main(int argc, char** argv){
 //                }
 ////                free(filename); //strdup allocates memory
 
-                /*here we know we got a valid data packet*/
+                /*here we know we got a valid wrq packet*/
                 cout<<"about to add a new client"<<endl;
+                cout<<"filename in 5 is: "<< (buffer+OP_BLOCK_FIELD_SIZE)<<endl;
                 char* filename = strdup(buffer + OP_BLOCK_FIELD_SIZE); //need to free in client C'tor
                 cout<<"filename in cpp is: "<<filename<<endl;
                 clients.add_new_client(buffer, tmp_client_addr, sock);
                 cout<<"I"<<i<<endl;
                 send_ack(&tmp_client_addr, sizeof(tmp_client_addr), sock, 0);
-                cout<<"earlist: filename: "<<tmp_client->second->file_name<<", last time: "<<tmp_client->second->last_packet_time<<endl;
+//                cout<<"earlist: filename: "<<tmp_client->second->file_name<<", last time: "<<tmp_client->second->last_packet_time<<endl;
             }
         }
 
