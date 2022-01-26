@@ -54,7 +54,7 @@ int main(int argc, char** argv){
         {
             time_t cur_time;
             time(&cur_time);
-            std::chrono::duration<double> diff = std::chrono::system_clock::now() - clients.clientList.begin()->first;
+            std::chrono::duration<double> diff = std::chrono::system_clock::now() - clients.clientList.begin()->first.time_since_epoch().count;
             select_timeout.tv_sec = (time_t)(static_cast<std::chrono::duration<double>>(time_out) - diff); //diff(end, begin)
         }
         cout<<"D"<<i<<endl;

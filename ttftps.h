@@ -146,6 +146,7 @@ public:
     uint16_t last_block_num;
     char* file_name;
     int fd;
+    time_t last_packet_time;
 
     /*methods*/
     Client(char* fileName, sock_addr_in client_add);
@@ -159,7 +160,7 @@ Client::Client(char* fileName, sock_addr_in client_addr): fails_num(0), last_blo
     client_address.sin_port = client_addr.sin_port;
     client_address.sin_addr.s_addr = client_addr.sin_addr.s_addr;
 //    strcpy(reinterpret_cast<char *>(client_address.sin_zero), reinterpret_cast<const char *>(client_addr.sin_zero));
-
+    last_packet_time = time(NULL);
     /* handling file */
     cout <<"Ctor 1"<<endl;
 //    strcpy(file_name, fileName); //including the null character
@@ -180,12 +181,12 @@ class All_clients
 {
 public:
     /*attributes*/
-    map<key_time, Client*> clientList;
+    map<int, Client*> clientList;
 
     /*methods*/
     All_clients();
     ~All_clients();
-    map<key_time, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
+    map<int, Client*>::iterator get_client(sock_addr_in client_addr);//for error #3
     bool file_exists(char* check_file); //for error #5
     void add_new_client(char* buffer, sock_addr_in curr_addr);
 //    bool operator<(const key_time& rhs);
@@ -196,7 +197,7 @@ All_clients::All_clients(){}
 
 All_clients::~All_clients()
 {
-    map<key_time, Client*>::iterator it = clientList.begin();
+    map<int, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); ) //erase automatically promotes it to next node
     {
         delete it->second;
@@ -204,15 +205,15 @@ All_clients::~All_clients()
     }
 }
 
-map<key_time, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
+map<int, Client*>::iterator All_clients::get_client(sock_addr_in client_addr)
 {
-    map<key_time, Client*>::iterator it = clientList.begin();
+    map<int, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); it++)
     {
         if((it->second->client_address.sin_port == client_addr.sin_port) && (it->second->client_address.sin_addr.s_addr == client_addr.sin_addr.s_addr))
         {
             cout<<"I FOUND this client in get_client func"<<endl;
-            cout<<" key IN FUNC is: "<<it->first.time_since_epoch().count()<<endl;
+            cout<<" time IN FUNC is: "<<it->second->last_packet_time<<endl;
             return it;
         }
     }
@@ -223,7 +224,7 @@ map<key_time, Client*>::iterator All_clients::get_client(sock_addr_in client_add
 
 bool All_clients::file_exists(char* check_file)
 {
-    map<key_time, Client*>::iterator it = clientList.begin();
+    map<int, Client*>::iterator it = clientList.begin();
     for (; it != clientList.end(); it++)
     {
         if (strcmp(it->second->file_name, check_file)==0)
@@ -244,14 +245,16 @@ void All_clients::add_new_client(char* Buffer, sock_addr_in curr_addr) //include
     cout <<"ok here 2"<<endl;
     Client* new_cl = new Client(filename, curr_addr);
     cout <<"ok here 3"<<endl;
-    key_time cur_time = chrono::system_clock::now();
-    clientList[cur_time]= new_cl;
+    auto port = curr_addr.sin_port;
+    auto ip = curr_addr.sin_addr.s_addr;
+    int key = stoi(to_string(ip) + to_string(port));
+    clientList[key]= new_cl;
 }
 //overloading for key in order to sort map wrt last time a message sent
-bool operator<(const key_time& lhs, const key_time& rhs)
-{
-    return lhs<rhs;
-}
+//bool operator<(const key_time& lhs, const key_time& rhs)
+//{
+//    return lhs<rhs;
+//}
 
 //ostream& operator<<(ostream& os, const key_time& kt)
 //{
